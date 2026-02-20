@@ -1,0 +1,36 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports: ["6333:6333"]
+    volumes: ["./data/qdrant:/qdrant/storage"]
+    restart: unless-stopped
+
+  embeddings:
+    build:
+      context: embeddings_service
+    environment:
+      - MODEL_NAME=${LOCAL_EMB_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
+    ports: ["8088:8088"]
+    restart: unless-stopped
+
+  ingest:
+    build: .
+    env_file: [.env]
+    volumes: ["./data:/app/data"]
+    depends_on: [qdrant, embeddings]
+    command: ["/app/bin/ingest"]
+
+  query:
+    build: .
+    env_file: [.env]
+    volumes: ["./data:/app/data"]
+    depends_on: [qdrant, embeddings]
+    entrypoint: ["/app/bin/query"]
+
+  bot:
+    build: .
+    env_file: [.env]
+    volumes: ["./data:/app/data"]
+    depends_on: [qdrant, embeddings]
+    restart: unless-stopped
+    command: ["/app/bin/bot"]
