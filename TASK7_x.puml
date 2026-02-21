@@ -1,0 +1,59 @@
+@startuml
+title Task 7 — RAG evaluation flow (golden set)
+
+actor Tester
+participant "tools/evaluate.py" as Eval
+participant "embeddings_service\n(/embed)" as Emb
+database "Qdrant" as Qdrant
+participant "RAG policy\n(MIN_SCORE_KNOWN / MIN_SCORE_UNKNOWN\n+ blocked_sources guard)" as Policy
+participant "LLM / Stub\n(optional in evaluation)" as LLM
+collections "logs.jsonl" as Logs
+
+note over Eval
+For each question in golden_questions.jsonl:
+- expected: true/false
+- must_include_sources (for expected=true)
+- blocked_sources (for prompt injection checks)
+end note
+
+Tester -> Eval: start evaluation
+
+loop for each question
+  Eval -> Emb: POST /embed(question)
+  Emb --> Eval: vector
+
+  Eval -> Qdrant: search top-k(vector)\n(collection=knowledge_base)
+  Qdrant --> Eval: chunks + scores + sources
+
+  Eval -> Policy: decide threshold\nexpected? -> MIN_SCORE_KNOWN : MIN_SCORE_UNKNOWN\ncheck blocked_sources
+  Policy --> Eval: chunks_found? + blocked_hit?
+
+  alt expected == true AND chunks_found == true
+    Eval -> LLM: (optional) build answer from top chunk\n(stub in evaluation)
+    LLM --> Eval: answer
+    Eval -> Eval: success = has must_include_sources
+  else expected == true AND chunks_found == false
+    Eval -> Eval: answer = "Я не знаю"\n(success=false)
+  else expected == false
+    alt blocked_hit == true
+      Eval -> Eval: answer = "Я не знаю"\n(pass=true; blocked_hit=true)
+    else
+      Eval -> Eval: answer = "Я не знаю"\n(pass=true)
+    end
+  end
+
+  Eval -> Logs: append JSONL row\n(ts, id, question, threshold,\n top_score, chunks_found, sources,\n blocked_hit, pass/fail)
+end
+
+Eval --> Tester: summary metrics\n(total/pass/fail/errors/accuracy)
+
+note right of Policy
+Possible failures:
+- empty/incorrect index or wrong collection
+- invalid payload / missing "source"
+- threshold too high / too low
+- irrelevant retrieval (false positive)
+- prompt injection chunk retrieved (mitigated by guard + "Я не знаю")
+end note
+
+@enduml
