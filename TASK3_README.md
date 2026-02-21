@@ -42,4 +42,3 @@ curl -s http://localhost:8088/health
 docker compose run --rm ingest
 docker compose run --rm query "Что такое Synth Flux?"
 ```
-
