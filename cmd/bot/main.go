@@ -50,7 +50,7 @@ func main() {
 
 	ragSvc := &rag.Service{
 		Cfg:       cfg,
-		LLM:       &llm.Stub{},
+		LLM:       selectLLM(cfg),
 		Retriever: &Retriever{Cfg: cfg, Q: q, E: emb},
 	}
 
@@ -89,4 +89,24 @@ func main() {
 		}
 		bot.Send(tgbotapi.NewMessage(upd.Message.Chat.ID, ans))
 	}
+}
+
+func selectLLM(cfg config.Settings) rag.LLM {
+	// Provider selection with safe fallback to Stub.
+	// Default provider is yandexgpt (see config), but you can switch via LLM_PROVIDER.
+	switch cfg.LLMProvider {
+	case "yandexgpt", "yandex", "yandex_gpt":
+		if cfg.YandexAPIKey != "" && cfg.YandexFolderID != "" {
+			return llm.NewYandexGPT(cfg.YandexAPIKey, cfg.YandexFolderID, cfg.YandexBaseURL, cfg.YandexModel, cfg.YandexAuthScheme)
+		}
+		log.Printf("LLM_PROVIDER=%s but YANDEX_API_KEY or YANDEX_FOLDER_ID is empty — fallback to stub", cfg.LLMProvider)
+	case "openai":
+		if cfg.OpenAIAPIKey != "" {
+			return llm.NewOpenAI(cfg.OpenAIAPIKey, cfg.OpenAIModel)
+		}
+		log.Printf("LLM_PROVIDER=openai but OPENAI_API_KEY is empty — fallback to stub")
+	default:
+		log.Printf("LLM_PROVIDER=%s is not supported — fallback to stub", cfg.LLMProvider)
+	}
+	return &llm.Stub{}
 }
