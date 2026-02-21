@@ -33,6 +33,8 @@ type Settings struct {
 	MinContextChars   int
 	MinScore          float64
 	FewShotPath       string
+
+	RAGGuardMode string
 }
 
 func Load() Settings {
@@ -64,6 +66,8 @@ func Load() Settings {
 		MinContextChars:   atoiDefault("MIN_CONTEXT_CHARS", 200),
 		MinScore:          atofDefault("MIN_SCORE", 0.45),
 		FewShotPath:       getenvDefault("FEWSHOT_PATH", "./prompts/fewshot_ru.md"),
+
+		RAGGuardMode: getenvDefault("RAG_GUARD_MODE", "on"),
 	}
 }
 
