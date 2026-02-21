@@ -45,6 +45,23 @@ func (c *Client) CreateCollection(name string, vectorSize int) error {
 	return nil
 }
 
+func (c *Client) DeleteCollection(name string) error {
+	req, _ := http.NewRequest("DELETE", fmt.Sprintf("%s/collections/%s", c.BaseURL, name), nil)
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	// 404 ок — коллекции могло не быть
+	if resp.StatusCode == 404 {
+		return nil
+	}
+	if resp.StatusCode >= 300 {
+		return fmt.Errorf("delete collection status=%s", resp.Status)
+	}
+	return nil
+}
+
 type Point struct {
 	ID      interface{}            `json:"id"`
 	Vector  []float64              `json:"vector"`

@@ -22,6 +22,9 @@ func main() {
 	dim := emb.Dim()
 	log.Printf("Embeddings dim=%d", dim)
 
+	if err := q.DeleteCollection(cfg.QdrantCollection); err != nil {
+		log.Fatal(err)
+	}
 	if err := q.CreateCollection(cfg.QdrantCollection, dim); err != nil {
 		log.Fatal(err)
 	}
@@ -77,5 +80,5 @@ func main() {
 	}
 	flush()
 
-	log.Printf("Ingest completed. chunks=%d time=%s", total, time.Since(start))
+	log.Printf("Ingest completed at %s. chunks=%d time=%s", time.Now().Format(time.RFC3339), total, time.Since(start))
 }

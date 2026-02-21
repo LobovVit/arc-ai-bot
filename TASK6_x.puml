@@ -1,0 +1,31 @@
+@startuml
+title Task 6 — Daily Knowledge Base Update
+
+actor "Engineer/DevOps" as dev
+
+folder "Source of Docs" as docs {
+  folder "data/docs/knowledge_base" as kb
+}
+
+node "Scheduler" as sched {
+  component "cron (daily 06:00)" as cron
+}
+
+node "RAG Stack (Docker Compose)" as stack {
+  component "ingest (Go) cmd: /app/bin/ingest" as ingest
+  component "embeddings_service HTTP :8088 /embed + /health" as emb
+   database "Qdrant 6333 collection=knowledge_base" as qdrant
+}
+
+file "Logs (data/ingest_daily.log) + stdout/stderr" as logs
+
+dev --> cron : configure schedule
+cron --> ingest : docker compose run --rm ingest
+
+kb --> ingest : read documents chunking
+ingest --> emb : embed(chunks)
+emb --> ingest : vectors
+ingest --> qdrant : rebuild/upsert index
+ingest --> logs : write logs
+
+@enduml
